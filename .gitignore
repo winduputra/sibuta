@@ -1,0 +1,33 @@
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+
+# Production / sensitive data
+.env.old
+backup.sql
+ssl/
+
+# Guest uploaded images
+/storage/app/image/
+/public/image
+
+base.json
+.env
+.env.old
+backup.sql
+ssl/
+/storage/app/image/
+/public/image
+/vendor/
