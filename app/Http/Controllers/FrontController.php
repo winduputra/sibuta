@@ -126,7 +126,7 @@ class FrontController extends Controller
         }
 
         // return view('guest.thankyou');
-        return redirect('https://sibuta.my.id/terimakasih-tamu/');
+        return redirect('https://sibuta.bpbjprovlampung.id/terimakasih-tamu/');
     }
 
     public function surveyForm()
@@ -159,7 +159,7 @@ class FrontController extends Controller
 
         $survey = Survey::create($payloads);
 
-        return redirect('https://sibuta.my.id/terimakasih-survey/');
+        return redirect('https://sibuta.bpbjprovlampung.id/terimakasih-survey/');
     }
 
     public function chart($id)
