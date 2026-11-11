@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\HomeRedirector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -29,7 +30,9 @@ class AuthController extends Controller
         $payloads   = $this->request->only(['username', 'password']);
 
         if( Auth::attempt($payloads) ) {
-            return redirect( route('user.list') );
+            // Land on the page the authenticated user is actually allowed to open.
+            // Admin-only pages would return 403 for an ASN account.
+            return redirect( HomeRedirector::urlFor(Auth::user()) );
         }
 
         return redirect( route('auth.login') )->withErrors(['Email/Kata Sandi salah']);
