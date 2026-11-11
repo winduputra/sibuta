@@ -23,11 +23,18 @@ ssl/
 /storage/app/image/
 /public/image
 
+# Service-account credentials (Firebase private key). Never commit.
 base.json
-.env
-.env.old
-backup.sql
-ssl/
-/storage/app/image/
-/public/image
-/vendor/
+
+# Local environment variants (never commit real secrets)
+/.env.*
+
+# Database dumps and local backups
+/storage/backups/
+*.sql
+
+# TLS material (private keys, certificates, CSRs)
+/ssl/
+
+# Agent tooling state
+/.omo/

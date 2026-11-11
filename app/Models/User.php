@@ -20,6 +20,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'username',
+        'nip',
         'password',
         'division_id',
         'role_id',
@@ -48,5 +49,17 @@ class User extends Authenticatable
 
     public function division() {
         return $this->belongsTo(Division::class, 'division_id');
+    }
+
+    public function role() {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Mobile access is granted by role code, never by a hardcoded role_id.
+     */
+    public function isAsn(): bool
+    {
+        return ($this->role->code ?? null) === Role::ASN;
     }
 }
