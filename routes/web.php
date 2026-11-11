@@ -35,7 +35,7 @@ Route::get('/privacy-policy', [FrontController::class, 'privacy'])->name('front.
 Route::group([
     'prefix' => 'user',
     'as' => 'user.',
-    'middleware' => 'auth',
+    'middleware' => ['auth', 'admin'],
 ], function() {
     Route::get('/add', [UserController::class, 'form'])->name('add');
     Route::post('/add', [UserController::class, 'store']);
@@ -44,6 +44,7 @@ Route::group([
     Route::get('/show/{id}', [UserController::class, 'show'])->name('show');
     Route::get('/list', [UserController::class,'index'])->name('list');
     Route::post('/delete/{id}', [UserController::class, 'delete'])->name('delete');
+    Route::post('/reset-password/{id}', [UserController::class, 'resetPassword'])->name('reset-password');
 });
 
 Route::group([

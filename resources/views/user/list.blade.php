@@ -48,6 +48,18 @@
             </div>
             @endif
 
+            @if ( session()->has('error') )
+            <div class="alert alert-danger">
+                <p class="mb-0">{{ session()->get('error') }}</p>
+            </div>
+            @endif
+
+            @if ( $errors->any() )
+            <div class="alert alert-danger">
+                <p class="mb-0">{{ $errors->first() }}</p>
+            </div>
+            @endif
+
             <table id="user" class="table table-bordered table-hover">
               <thead>
                 <tr>
@@ -68,13 +80,17 @@
                   </td>
                   <td>{{ $item->name }}</td>
                   <td>{{ $item->username }}</td>
-                  <td>{{ $item->division->name }}</td>
+                  <td>{{ optional($item->division)->name ?? '-' }}</td>
                   <td>
                     <a href="{{ route('user.edit', ['id' => $item->id]) }}" class="btn btn-sm btn-success">
                         <i class="fa fa-edit"></i>
                     </a>
 
-                    <button  data-id="{{ $item->id }}" data-name="{{{ $item->title }}}" class="btn btn-danger btn-sm btn-delete">
+                    <button data-id="{{ $item->id }}" data-name="{{ $item->name }}" data-username="{{ $item->username }}" class="btn btn-warning btn-sm btn-reset-password" title="Reset Password">
+                        <i class="fa fa-key"></i>
+                    </button>
+
+                    <button  data-id="{{ $item->id }}" data-name="{{ $item->name }}" class="btn btn-danger btn-sm btn-delete">
                         <i class="fa fa-trash"></i>
                     </button>
                   </td>
@@ -101,6 +117,39 @@
   </div>
 </section>
 
+<div class="modal fade" id="modal-reset-password" tabindex="-1" role="dialog" aria-labelledby="modal-reset-password-title" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <form method="post" id="form-reset-password" action="">
+      @csrf
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-reset-password-title">Reset Password</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">Reset password untuk <b id="reset-password-target"></b>.</p>
+
+          <div class="form-group">
+            <label for="reset-password" class="mb-0">Password Baru</label>
+            <input type="password" class="form-control" id="reset-password" name="password" placeholder="Minimal 8 karakter" required minlength="8" autocomplete="new-password">
+          </div>
+
+          <div class="form-group mb-0">
+            <label for="reset-password-confirmation" class="mb-0">Konfirmasi Password Baru</label>
+            <input type="password" class="form-control" id="reset-password-confirmation" name="password_confirmation" placeholder="Ulangi password baru" required minlength="8" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-warning">Reset Password</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 @endsection
 
 @push('script')
@@ -113,6 +162,20 @@
 <script src="{{ url('plugins/datatables-buttons/js/buttons.bootstrap4.min.js') }}"></script>
 <script>
   $(function () {
+    $('.btn-reset-password').click(function(event) {
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      const username = $(this).data('username');
+
+      event.preventDefault();
+
+      $('#reset-password-target').text(name + ' (' + username + ')');
+      $('#form-reset-password').attr('action', '/user/reset-password/' + id);
+      $('#reset-password').val('');
+      $('#reset-password-confirmation').val('');
+      $('#modal-reset-password').modal('show');
+    });
+
     $('.btn-danger').click(function(event) {
       const id = $(this).data('id');
       

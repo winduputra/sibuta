@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Division;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -85,5 +86,46 @@ class UserController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Resets another account's password from the admin panel.
+     *
+     * Authorisation is enforced by the `admin` route middleware. The old
+     * password is intentionally not required: an administrator performs the
+     * reset precisely when the account owner can no longer sign in. Only the
+     * password column is written, so no other account data can be smuggled in
+     * through the request payload.
+     */
+    public function resetPassword($id)
+    {
+        $this->request->validate([
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'max:255',
+                'confirmed',
+            ],
+        ], [
+            'password.required' => 'Password baru wajib diisi.',
+            'password.min' => 'Password baru minimal 8 karakter.',
+            'password.max' => 'Password baru maksimal 255 karakter.',
+            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return redirect(route('user.list'))
+                ->with('error', 'Akun tidak ditemukan.');
+        }
+
+        $user->update([
+            'password' => Hash::make($this->request->password),
+        ]);
+
+        return redirect(route('user.list'))
+            ->with('success', 'Password ' . $user->name . ' (' . $user->username . ') berhasil direset.');
     }
 }
