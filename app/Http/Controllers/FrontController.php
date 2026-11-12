@@ -9,7 +9,7 @@ use App\Models\Guest;
 use App\Models\Question;
 use App\Models\Survey;
 use App\Models\User;
-use App\Models\Device;
+use App\Support\GuestNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -83,41 +83,7 @@ class FrontController extends Controller
 
         $guest = Guest::create($payloads);
 
-        $devices = Device::where('user_id', '=', $payloads['user_id'])->get();
-
-        try {
-            $fcmToken  = FcmService::getFCMAuthorizationToken(base_path('base.json'));
-            foreach ($devices as $device) {
-                $payloads   = [
-                    'message' => [
-                        'token' => $device->device_token,
-                        'notification' => [
-                            'body' => 'Terdapat Permintaan Temu Baru dari ' . $payloads['name'],
-                            'title' => 'Permintaan Baru Diterima',
-                            'image' => '',
-                        ],
-                        'data' => [
-                            'title' => 'Permintaan Baru Diterima',
-                            'message' => 'Terdapat Permintaan Temu Baru dari ' . $payloads['name'],
-                            'image' => null,
-                            'type' => 'guest',
-                            'id' => ''. $guest->id,
-                        ],
-                        'apns'  => [
-                            'payload' => [
-                                'aps'   => [
-                                    'mutable_content'   => true,
-                                    'category'  => 'guest',
-                                ]
-                            ]
-                        ]
-                    ]
-                ];
-                $status = FCMService::sendNotification($fcmToken, $payloads);
-            }
-        } catch(\Exception $e) {
-            // 
-        }
+        GuestNotifier::visitorRequestCreated($guest);
 
         try {
             Mail::to($guest->email)->send(new GuestPending($guest));
@@ -239,42 +205,21 @@ class FrontController extends Controller
         if( !$user ) {
             return response()->json(['success' => false, 'message' => 'Not Found']);
         }
-        $devices = Device::where('user_id','=',$id)->get();
-        try {
-            $fcmToken  = FcmService::getFCMAuthorizationToken(base_path('base.json'));
-            foreach ($devices as $device) {
-                $payloads   = [
-                    'message' => [
-                        'token' => $device->device_token,
-                        'notification' => [
-                            'body' => 'Test FCM',
-                            'title' => 'Test',
-                            'image' => '',
-                        ],
-                        'data' => [
-                            'title' => 'Test',
-                            'message' => 'Test FCM',
-                            'image' => null,
-                            'type' => 'guest',
-                            'id' => '1',
-                        ],
-                        'apns'  => [
-                            'payload' => [
-                                'aps'   => [
-                                    'mutable_content'   => true,
-                                    'category'  => 'guest',
-                                ]
-                            ]
-                        ]
-                    ]
-                ];
-                $status = FCMService::sendNotification($fcmToken, $payloads);
-            }
-        } catch(\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
-        }
 
-        return response()->json(['success' => true]);
+        $sent = FcmService::sendToUser(
+            (int) $user->id,
+            [
+                'title' => 'Tes Notifikasi',
+                'body' => 'Notifikasi uji coba dari SiBUTA.',
+            ],
+            [
+                'type' => 'test',
+                'guest_id' => '0',
+                'status' => 'test',
+            ]
+        );
+
+        return response()->json(['success' => true, 'sent' => $sent]);
     }
 
     public function privacy()

@@ -23,8 +23,9 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'nip' => ['required', 'string', 'digits:18'],
             'password' => ['required', 'string'],
-            'device_token' => ['nullable', 'string'],
-            'device_name' => ['nullable', 'string'],
+            'device_token' => ['nullable', 'string', 'max:255'],
+            'device_name' => ['nullable', 'string', 'max:255'],
+            'platform' => ['nullable', 'string', 'max:32'],
         ], [
             // Indonesian messages: the mobile app renders these verbatim.
             'nip.required' => 'NIP wajib diisi.',
@@ -92,7 +93,9 @@ class AuthController extends Controller
 
     /**
      * Keep the existing FCM registration behaviour. Token rows are keyed by
-     * user + device token so repeated logins never accumulate duplicates.
+     * the token itself because the column is unique: a second account logging
+     * in on the same phone must take the token over, otherwise the device
+     * would keep receiving the previous account's visitor notifications.
      */
     private function registerDevice(User $user, array $credentials): void
     {
@@ -100,15 +103,22 @@ class AuthController extends Controller
             return;
         }
 
-        Device::updateOrCreate(
-            [
-                'device_token' => $credentials['device_token'],
-                'user_id' => $user->id,
-            ],
-            [
-                'device_name' => $credentials['device_name'] ?? 'Device ' . $user->name,
-            ]
-        );
+        // device_token is both the lookup key and fillable, so a fill-based
+        // upsert leaves the original state intact and the user_id keeps
+        // pointing at the previous account. Assign the row explicitly to move
+        // a token to the ASN that just logged in on this phone.
+        $device = Device::where('device_token', '=', $credentials['device_token'])->first();
+
+        if ($device === null) {
+            $device = new Device();
+            $device->device_token = $credentials['device_token'];
+        }
+
+        $device->user_id = $user->id;
+        $device->device_name = $credentials['device_name'] ?? 'Device ' . $user->name;
+        $device->platform = $credentials['platform'] ?? 'android';
+        $device->last_used_at = now();
+        $device->save();
     }
 
     /**

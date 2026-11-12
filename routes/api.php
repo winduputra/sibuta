@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\GuestController;
 use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Http\Request;
@@ -42,6 +43,19 @@ Route::group([
     'middleware' => 'auth:sanctum',
 ], function() {
     Route::get('/', [DashboardController::class, 'list']);
+});
+
+/*
+| FCM device registration. Login also accepts the token inline, this group
+| covers the onTokenRefresh case when the app is already authenticated.
+*/
+Route::group([
+    'prefix' => 'devices',
+    'as' => 'devices.',
+    'middleware' => 'auth:sanctum',
+], function() {
+    Route::post('/', [DeviceController::class, 'store']);
+    Route::delete('/', [DeviceController::class, 'destroy']);
 });
 
 Route::group([
