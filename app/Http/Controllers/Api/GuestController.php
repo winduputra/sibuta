@@ -16,9 +16,13 @@ class GuestController extends Controller
 {
     /**
      * Guest status values, mirroring the comment on the guests.status column:
-     * 0 pending, 1 approved, -1 rejected, 2 reschedule.
+     * 0 pending, 1 approved, -1 rejected, 2 reschedule, 3 completed.
      */
     private const STATUS_PENDING = 0;
+
+    private const STATUS_APPROVED = 1;
+
+    private const STATUS_COMPLETED = 3;
 
     protected $request;
 
@@ -28,8 +32,11 @@ class GuestController extends Controller
     }
 
     /**
-     * Pending requests assigned to the signed-in ASN.
+     * Visits assigned to the signed-in ASN, filtered by status.
      *
+     * Defaults to pending so the existing mobile dashboard keeps its behaviour.
+     * status=1 returns the accepted visits the ASN can now close, status=3 the
+     * completed ones, and status=all returns every visit of this ASN.
      * ticket_type is kept for backwards compatibility with the old web
      * dashboard; -1 means "every ticket type".
      */
@@ -39,11 +46,19 @@ class GuestController extends Controller
 
         $ticketType = $this->request->ticket_type;
         $search = $this->request->search;
+        $status = $this->request->status;
 
         $query = Guest::where('user_id', '=', $auth->id)
-            ->where('status', '=', self::STATUS_PENDING)
             ->orderBy('schedule', 'asc')
             ->orderBy('id', 'asc');
+
+        if ($status === 'all') {
+            // No status filter: the history tab wants every visit.
+        } elseif ($status !== null && $status !== '') {
+            $query = $query->where('status', '=', (int) $status);
+        } else {
+            $query = $query->where('status', '=', self::STATUS_PENDING);
+        }
 
         if ($ticketType !== null && $ticketType !== '' && (int) $ticketType !== -1) {
             $query = $query->where('ticket_type', '=', $ticketType);
@@ -154,6 +169,76 @@ class GuestController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $guest]);
+    }
+
+    /**
+     * Closes an accepted visit and records what happened in the meeting.
+     *
+     * Only an accepted visit (status 1) can be completed, so the ASN cannot
+     * skip the accept step, and a second completion attempt is rejected with
+     * 409 instead of overwriting the original result and timestamp.
+     */
+    public function complete($id)
+    {
+        $this->request->validate([
+            'meeting_result' => ['required', 'string', 'max:2000'],
+        ], [
+            'meeting_result.required' => 'Hasil pertemuan wajib diisi.',
+            'meeting_result.max' => 'Hasil pertemuan maksimal 2000 karakter.',
+        ]);
+
+        $auth = Auth::user();
+
+        $guest = Guest::where('id', '=', $id)->where('user_id', '=', $auth->id)->first();
+
+        if (!$guest) {
+            return response()->json(['success' => false, 'message' => 'Data Tidak Ditemukan'], 404);
+        }
+
+        if ((int) $guest->status !== self::STATUS_APPROVED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya kunjungan yang sudah diterima dapat diselesaikan',
+            ], 409);
+        }
+
+        $guest->update([
+            'status' => self::STATUS_COMPLETED,
+            'meeting_result' => trim((string) $this->request->meeting_result),
+            'completed_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'data' => $guest->refresh()]);
+    }
+
+    /**
+     * Streams the visitor photo to the ASN who owns the visit.
+     *
+     * The files sit in storage/app/image, outside the web root, so they are
+     * only reachable through this route. Scoping the lookup by user_id means a
+     * photo id belonging to another ASN returns 404 rather than leaking the
+     * image, and no public directory ever exposes every guest photo at once.
+     */
+    public function photo($id)
+    {
+        $auth = Auth::user();
+
+        $guest = Guest::where('id', '=', $id)->where('user_id', '=', $auth->id)->first();
+
+        if (!$guest) {
+            return response()->json(['success' => false, 'message' => 'Data Tidak Ditemukan'], 404);
+        }
+
+        $path = $guest->resolvePhotoPath();
+
+        if ($path === null) {
+            return response()->json(['success' => false, 'message' => 'Foto Tidak Tersedia'], 404);
+        }
+
+        return response()->file($path, [
+            'Cache-Control' => 'private, max-age=300',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**

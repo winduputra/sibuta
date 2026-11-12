@@ -25,11 +25,21 @@ class Guest extends Model
         'reschedule',
         'reschedule_reason',
         'employee_name',
+        'meeting_result',
+        'completed_at',
     ];
 
     protected $hidden = [
         'created_at',
         'updated_at',
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'photo_url',
     ];
 
     public function division()
@@ -40,6 +50,52 @@ class Guest extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Mobile-facing photo URL, or null when the visitor has no photo.
+     *
+     * The selfie column stores whatever the form produced, which on older
+     * records is an absolute URL baked from APP_URL. Returning that raw value
+     * would hand the app a localhost address, and the files themselves live in
+     * storage/app/image which the web server cannot serve. The app therefore
+     * always receives the authenticated API photo route, which streams the file
+     * only to the ASN who owns the visit.
+     */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        $selfie = trim((string) $this->selfie);
+
+        if ($selfie === '') {
+            return null;
+        }
+
+        return url('/api/guest/' . $this->id . '/photo');
+    }
+
+    /**
+     * Absolute path of the stored photo file, or null when there is nothing to
+     * stream. Only the basename is honoured so a crafted selfie value cannot
+     * walk out of the image directory.
+     */
+    public function resolvePhotoPath(): ?string
+    {
+        $selfie = trim((string) $this->selfie);
+
+        if ($selfie === '') {
+            return null;
+        }
+
+        $name = basename(parse_url($selfie, PHP_URL_PATH) ?: $selfie);
+
+        if ($name === '' || $name === '.' || $name === '..') {
+            return null;
+        }
+
+        $base = storage_path('app/image');
+        $path = $base . DIRECTORY_SEPARATOR . $name;
+
+        return is_file($path) ? $path : null;
     }
 
     public function getTicketTypeStringAttribute()
