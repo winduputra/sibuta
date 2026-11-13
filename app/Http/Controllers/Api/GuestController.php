@@ -49,8 +49,11 @@ class GuestController extends Controller
         $status = $this->request->status;
 
         $query = Guest::where('user_id', '=', $auth->id)
-            ->orderBy('schedule', 'asc')
-            ->orderBy('id', 'asc');
+            // Newest request first: an ASN works through the visits that just
+            // arrived, not the ones from weeks ago. created_at also carries the
+            // real submission moment while schedule only holds a date.
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
 
         if ($status === 'all') {
             // No status filter: the history tab wants every visit.
@@ -75,7 +78,7 @@ class GuestController extends Controller
             });
         }
 
-        return $query->get();
+        return $this->respondWithGuests($query->get());
     }
 
     public function today()
@@ -88,7 +91,15 @@ class GuestController extends Controller
             return response()->json(['success' => false, 'message' => 'Please Provide Ticket Type'], 400);
         }
 
-        return Guest::where('user_id', '=', $auth->id)->where('ticket_type', '=', $ticketType)->where('status', '=', 1)->paginate(1000);
+        // schedule is a date column, so "today" has to be the WIB date rather
+        // than whatever date the server clock happens to be on.
+        $today = now()->timezone('Asia/Jakarta')->format('Y-m-d');
+
+        return Guest::where('user_id', '=', $auth->id)
+            ->where('ticket_type', '=', $ticketType)
+            ->where('status', '=', self::STATUS_APPROVED)
+            ->where('schedule', '=', $today)
+            ->paginate(1000);
     }
 
     public function accept($id)
@@ -239,6 +250,25 @@ class GuestController extends Controller
             'Cache-Control' => 'private, max-age=300',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Turns the photo_url accessor into an absolute URL on the host the app
+     * actually called, so the app never receives a localhost address even when
+     * APP_URL on the server is unset or stale.
+     */
+    private function respondWithGuests($guests)
+    {
+        $base = $this->request->getSchemeAndHttpHost();
+
+        return $guests->map(function (Guest $guest) use ($base) {
+            $payload = $guest->toArray();
+            $payload['photo_url'] = $guest->photo_url === null
+                ? null
+                : $base . $guest->photo_url;
+
+            return $payload;
+        });
     }
 
     /**

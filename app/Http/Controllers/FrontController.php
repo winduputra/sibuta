@@ -54,7 +54,11 @@ class FrontController extends Controller
 
         $payloads = $this->request->only(['name', 'email', 'phone', 'guest_type', 'division_id', 'user_id', 'ticket_type', 'description', 'schedule']);
         if( !isset($payloads['schedule']) ) {
-            $payloads['schedule'] = date('Y-m-d');
+            // The schedule column only stores a date, so the dashboard reads the
+            // submission moment from created_at. Writing it here from PHP time
+            // (now WIB) keeps that moment correct regardless of the DB session.
+            $payloads['schedule'] = now()->format('Y-m-d');
+            $payloads['created_at'] = now();
         }
 
         $user = User::find($payloads['user_id']);

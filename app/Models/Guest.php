@@ -27,6 +27,7 @@ class Guest extends Model
         'employee_name',
         'meeting_result',
         'completed_at',
+        'created_at',
     ];
 
     protected $hidden = [
@@ -36,10 +37,13 @@ class Guest extends Model
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     protected $appends = [
         'photo_url',
+        'submitted_at',
     ];
 
     public function division()
@@ -70,7 +74,36 @@ class Guest extends Model
             return null;
         }
 
-        return url('/api/guest/' . $this->id . '/photo');
+        // A relative path is deliberate: url() reads APP_URL, which on the
+        // server can still be a localhost default and produced doubled hosts
+        // like http://localhost/localhost/api/... the app could never load.
+        // GuestController::list() prefixes the request scheme and host.
+        return $this->photoPath();
+    }
+
+    /**
+     * Request-relative photo route consumed by the mobile app.
+     */
+    public function photoPath(): string
+    {
+        return '/api/guest/' . $this->id . '/photo';
+    }
+
+    /**
+     * When the visitor actually submitted the guestbook form, as WIB.
+     *
+     * created_at stays hidden because it is an internal bookkeeping column, but
+     * the mobile dashboard has to show the submission time and the schedule
+     * column only holds a date. This accessor is the single place that decides
+     * how that moment is serialised, so the app never has to guess a timezone.
+     */
+    public function getSubmittedAtAttribute(): ?string
+    {
+        if ($this->created_at === null) {
+            return null;
+        }
+
+        return $this->created_at->copy()->timezone('Asia/Jakarta')->format('Y-m-d H:i:s');
     }
 
     /**

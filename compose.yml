@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: sibuta-app
     restart: unless-stopped
+    environment:
+      TZ: Asia/Jakarta
     volumes:
       - ./:/var/www/html
     networks:
@@ -14,6 +16,8 @@ services:
     image: nginx:alpine
     container_name: sibuta-nginx
     restart: unless-stopped
+    environment:
+      TZ: Asia/Jakarta
     depends_on:
       - app
     volumes:

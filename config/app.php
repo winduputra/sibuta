@@ -67,7 +67,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // SiBUTA runs for a Lampung office, so every timestamp the app writes or
+    // reads is WIB. Keeping UTC here made Eloquent shift guest submission
+    // times by -7 hours, which the mobile dashboard then displayed verbatim.
+    'timezone' => 'Asia/Jakarta',
 
     /*
     |--------------------------------------------------------------------------

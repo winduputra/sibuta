@@ -20,8 +20,12 @@ class DashboardController extends Controller
     {
         $auth = Auth::user();
 
-        $todayGuest = Guest::where('user_id', '=', $auth->id)->where('schedule', '=', date('Y-m-d'))->count();
-        $thisMonth = Guest::where('user_id', '=', $auth->id)->where('schedule', '>=', date('Y-m-') . '01 00:00:00')->where('schedule', '<=', date('Y-m-t') . ' 23:59:59')->count();
+        // schedule stores a plain date, so today's boundary must be the WIB
+        // date. Using date() here followed the server clock instead.
+        $today = now()->timezone('Asia/Jakarta');
+
+        $todayGuest = Guest::where('user_id', '=', $auth->id)->where('schedule', '=', $today->format('Y-m-d'))->count();
+        $thisMonth = Guest::where('user_id', '=', $auth->id)->where('schedule', '>=', $today->format('Y-m-') . '01')->where('schedule', '<=', $today->format('Y-m-t'))->count();
         $rating = 0;
 
         return response()->json([
