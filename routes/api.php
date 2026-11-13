@@ -64,9 +64,12 @@ Route::group([
     'middleware' => 'auth:sanctum'
 ], function() {
     Route::get('list', [GuestController::class, 'list']);
+    Route::get('{id}/status', [GuestController::class, 'status']);
     Route::get('{id}/photo', [GuestController::class, 'photo']);
     Route::post('accept/{id}', [GuestController::class, 'accept']);
     Route::post('reject/{id}', [GuestController::class, 'reject']);
     Route::post('reschedule/{id}', [GuestController::class, 'reschedule']);
     Route::post('complete/{id}', [GuestController::class, 'complete']);
+    Route::get('history/stats', [GuestController::class, 'historyStats']);
+    Route::get('history/today', [GuestController::class, 'historyToday']);
 });
